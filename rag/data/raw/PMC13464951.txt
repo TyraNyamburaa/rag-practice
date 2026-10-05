@@ -1,0 +1,303 @@
+# Hybrid Vision Transformerâ€“CNN Architecture with Optimized Feature Selection for Skin Cancer Classification
+
+## Abstract
+
+Background/Objectives: Melanoma is a life-threatening skin cancer characterized by aggressive progression and high metastatic potential, making early diagnosis essential for improving patient survival and treatment outcomes. However, accurate automated skin lesion classification remains challenging due to variations in lesion appearance, illumination, image quality, and the presence of artifacts. This study proposes a unified framework for robust multi-class skin cancer classification by integrating preprocessing, lesion segmentation, feature extraction, optimization, and classification within a single end-to-end architecture. Methods: The proposed framework employs an iterative hair artifact removal strategy based on the fusion of Frangi vesselness filtering, Gabor texture filtering, morphological refinement, and Telea inpainting to preserve lesion integrity. A novel dermoscopic lesion segmentation network (CutisNet) is introduced to accurately delineate lesion boundaries. Hybrid representation learning combines deep features extracted using MobileNetV2 with uniquely selected handcrafted descriptors to capture complementary texture, structural, and contextual information. Gray Wolf Optimization is utilized for feature fusion and refinement, while a hybrid GNNâ€“CNN classifier performs robust multi-class skin lesion classification. Results: Extensive experiments conducted on multiple benchmark dermoscopic datasets demonstrate the effectiveness and generalization capability of the proposed framework. The proposed model consistently outperformed existing state-of-the-art methods, achieving a maximum classification accuracy of 96.7% on the PH2 dataset while maintaining competitive performance across other benchmark datasets. Conclusions: The proposed framework effectively integrates novel preprocessing, segmentation, hybrid feature representation, feature optimization, and classification strategies to improve the robustness and accuracy of automated skin cancer classification. These results demonstrate its potential to support reliable computer-aided diagnosis and assist clinicians in the early detection of skin cancer.
+
+Keywords: melanoma detection, skin lesion classification, deep learning, dermoscopic image analysis, feature extraction, attention mechanism, medical image processing
+
+## 1. Introduction
+
+Skin cancer detection is a focal point in modern medical research due to the growing increase in dermatological disorders, especially malignant skin lesions. Melanoma is the most serious type of skin cancer because it grows rapidly and can spread to other parts of the body. An upsurge in incidence over the last decade has been reported in recent epidemiology studies, which are associated with factors including extended exposure to the ultraviolet rays of the sun, environmental changes, and aging populations []. Early diagnosis is crucial as the prognosis and treatment options are limited if the lesions are diagnosed late, whereas prognosis is improved and treatment options are broader in the early stages of diagnosis [].
+
+The current diagnostic methods, such as visual inspection and dermoscopic assessment, are highly dependent on the clinicianâ€™s experience and image interpretation. This frequently leads to intra- and inter-observer variability, particularly when diagnosing early-stage lesions with subtle visual features []. Artificial Intelligence (AI)-based computer-aided diagnostic systems help reduce this subjectivity by providing objective and reproducible image analysis that is independent of the clinicianâ€™s level of experience. Moreover, deep learning, particularly hybrid feature fusion frameworks that integrate deep and handcrafted representations, can capture subtle texture, shape, and morphological variations that may not be readily distinguishable through visual assessment alone. Although AI systems remain challenged by difficult cases and should not replace clinical expertise, they can serve as valuable decision-support tools that improve diagnostic consistency and assist clinicians in skin cancer screening.
+
+In addition to conventional dermoscopic imaging, emerging technologies such as Raster-Scan Optoacoustic Mesoscopy (RSOM), photoacoustic tomography, and Raman spectroscopy have shown promise for skin cancer diagnosis by providing vascular, structural, and biochemical tissue information []. However, these modalities require specialized imaging equipment and clinical infrastructure, limiting their widespread adoption. In contrast, AI-based analysis of conventional RGB dermoscopic and clinical images offers a more practical, accessible, and cost-effective solution for routine computer-aided skin cancer screening and diagnosis.
+
+Large-scale annotated datasets have played a vital role in recent times, in the field of automated skin cancer detection in this context. There is a vast amount of publicly available material, like the ISIC archive, which contains a wide range of dermoscopic images for a large number of different categories of lesions, which have greatly helped research by providing a wide variety of images to use for benchmarking and comparative analysis []. Annotated high-quality images with well-defined classes of lesions have been provided by other datasets (PH2, HAM10000), which allow for both segmentation and classification []. Moreover, datasets such as PAD UFES 20 also contain clinical metadata, enabling multimodal analysis and enhancing a modelâ€™s generalization. However, these datasets are especially prone to class imbalance and have limited representation of rare malignancies and variations in imaging conditions, making the development of robust models difficult.
+
+Initial computational methods relied on manually engineered features from these datasets, such as color, texture, and shape descriptors, as well as classic machine learning classifiers. Those methods offered a set of rules with a comprehensible interpretation, but were these constrained by the human work of feature engineering and by their sensitivity to changes in illumination and image quality []. Deep learning, especially deep convolutional neural networks, has revolutionized the field of skin cancer detection, allowing for automatic feature learning directly from image data. These models have been shown to have high accuracy and, in some instances, performance similar to dermatologists []. However, they are highly dependent on the availability of extensive and diverse datasets, and are prone to overfitting and bias if they are trained on small or imbalanced sets of data.
+
+In this work, a unified skin lesion analysis framework is proposed that integrates preprocessing, deep learning, segmentation, feature extraction, optimization, and classification. Dermoscopic RGB images are first preprocessed, followed by iterative Frangi- and Gabor-based hair removal and Telea inpainting to enhance lesion visibility. The refined images are then used for deep feature extraction using a ViT-based DINO and MobileNetV2 to capture complementary global and local representations. In parallel, a novel segmentation model, CutisNet, generates precise RGB lesion masks, which are further used to extract handcrafted features, including SIFT keypoints, superpixel centroid and contour points, texture descriptors using Tamura features, GLRLM, and Gabor filters, along with structural features based on symmetry analysis, Hu moments, and ellipse fitting. Finally, all deep, texture, keypoint, and structural features are fused, optimized using Gray Wolf Optimization, and then classified using a hybrid GNN-CNN architecture for final skin cancer classification.
+
+The key contributions of the proposed model are summarized as follows:
+
+## 2. Literature Review
+
+Skin cancer has become one of the fastest growing cancers globally, with melanoma responsible for a large proportion of skin cancer related mortality due to its aggressive and metastatic nature. Epidemiological studies have reported a steady rise in incidence, particularly in populations with high ultraviolet exposure and aging demographics, emphasizing the increasing disease burden []. The prevalence of late-stage diagnoses further underscore the necessity of early detection, as survival rates decrease significantly with disease progression []. Consequently, automated diagnostic systems are being increasingly developed to assist clinicians, reduce subjectivity, and enable scalable screening.
+
+Conventional diagnostic methods, such as dermoscopy and visual inspection, are highly dependent on clinician expertise, leading to variability in diagnosis. Early computational approaches addressed this by extracting handcrafted features including color distribution, asymmetry, border irregularity, texture, and shape descriptors, followed by classification using machine learning algorithms, such as support vector machines, k-nearest neighbors, and random forests. Although these methods provided interpretability and a structured framework, they were limited by low feature discriminative power, sensitivity to imaging conditions, and reliance on expert-designed features [].
+
+Deep learning, particularly convolutional neural networks, significantly improved skin cancer detection by enabling automatic hierarchical feature learning from raw images. These models demonstrated high accuracy by capturing complex spatial and contextual patterns and have achieved performance comparable to dermatologists in certain tasks []. Architectures such as ResNet and DenseNet further enhanced performance through improved gradient flow and feature reuse []. However, their dependence on large, annotated datasets and susceptibility to overfitting in limited data scenarios remain key limitations.
+
+Segmentation based methods have been employed to improve lesion localization prior to classification, reducing background noise and enhancing feature extraction. Encoderâ€“decoder architectures, such as U Net and fully convolutional networks, have shown strong performance in delineating lesion boundaries under challenging conditions []. Despite their effectiveness, segmentation errors due to low contrast, artifacts, or irregular lesion shapes can propagate and degrade classification accuracy. Hybrid and ensemble approaches have been proposed to improve robustness by combining multiple models or integrating handcrafted and deep features. Attention mechanisms and multi-scale feature fusion further enhance the focus on clinically relevant regions and improve feature representation across scales []. While these methods achieve higher accuracies, they introduce increased computational complexity and reduced interpretability, limiting their practicality in real-world clinical settings.
+
+Transformer-based architectures have recently gained attention due to their ability to model global dependencies and contextual relationships within images. Vision Transformers and hybrid CNN transformer models show promising performance in capturing global lesion characteristics []. However, their high computational requirements and reliance on large-scale annotated datasets restrict their widespread application in medical imaging. Transfer learning has been widely adopted to mitigate data scarcity by leveraging pretrained models, improving convergence speed and classification performance []. Nevertheless, domain mismatch between natural and medical images can limit feature relevance, requiring careful fine tuning for reliable results.
+
+Despite these advancements, several challenges persist. Dataset imbalance, where malignant cases are underrepresented, leads to biased predictions and reduced sensitivity []. Variations in imaging conditions, acquisition devices, and annotation standards hinder generalization across clinical settings []. Additionally, limited interpretability of deep learning models raises concerns regarding trust and clinical adoption []. In summary, while deep learning and advanced hybrid models have substantially improved skin cancer detection, the increasing disease burden highlights the need for robust, generalizable, and interpretable systems that can effectively operate in real-world clinical environments.
+
+## 3. Materials and Methods
+
+The proposed methodology presents a unified framework for skin lesion analysis by integrating preprocessing, segmentation, feature extraction, optimization, and classification into a single pipeline. It leverages both deep and handcrafted features to capture comprehensive lesion characteristics. The overall architecture of the proposed system is illustrated in .
+
+## 3.1. Image Preprocessing and Enhancement
+
+A multi-stage preprocessing pipeline was employed to enhance dermoscopic image quality and consistency, including color normalization, illumination correction, contrast enhancement, and noise reduction. Initially, gray world color normalization corrected color imbalance. We let I(x,y,c) denote the RGB image, displayed in a, where câˆˆ{R,G,B}. The mean intensity of each channel is Î¼c=1Nâˆ‘x,yI(x,y,c), and the global gray average is Î¼gray. Each channel is scaled to enforce color constancy, as expressed by Equation (1), producing b.
+
+The normalized image was converted to grayscale Ig(x,y), as shown in c, followed by illumination correction to suppress uneven lighting effects. A smoothed illumination estimate Lx,y was obtained using Gaussian filtering as L(x,y)=GÏƒ(x,y)âˆ—Ig(x,y), and the corrected image was computed using homomorphic normalization with Equation (2)
+
+Contrast was enhanced using CLAHE, yielding d. Finally, bilateral filtering performed edge-preserving smoothing. The filtered image If(x,y), as shown in e, is defined as Equation (3).
+
+where Ïƒs and Ïƒr control spatial and intensity similarity, and Wx,y is a normalization factor. This pipeline ensures color constancy, corrects illumination, enhances contrast, and preserves structural details, enabling reliable feature extraction and skin cancer classification.
+
+## 3.2. Hair Artifact Removal Using Frangiâ€“Gabor Fusion and Iterative Inpainting
+
+Hair artifacts were removed using an iterative multi-scale filtering framework combining Frangi vesselness filtering, Gabor texture filtering, morphological refinement, and image inpainting. We let the preprocessed grayscale image be denoted as Ig(x,y). Hair structures were enhanced using Frangi filtering, which detects tubular structures via eigenvalues of the Hessian matrix. The vesselness response is given as Equation (4)
+
+where multiple scales of Ïƒ capture both fine and thick hairs, with the mask shown in f. In parallel, Gabor filtering was applied to capture linear-oriented textures. The response for orientation Î¸ is given by Equation (5)
+
+where KÎ¸ is a Gabor kernel. Multi-orientation responses were aggregated using a maximum operation, G(x,y)=maxÎ¸GÎ¸(x,y), for Î¸âˆˆ{0Â°,30Â°,â€¦,150Â°}, producing the mask in g. Hair candidate regions were extracted via adaptive percentile thresholding as MF=VF(x,y)>TF and MG=G(x,y)>TG, where TF and TG are dynamically computed. The final hair mask was obtained as M=MFâˆªMG. To enhance spatial coherence, morphological closing and dilation were applied, as given by Equation (6)
+
+Detected hair regions were removed using Navierâ€“Stokes-based image inpainting (Telea method): Iclean=Inpaint(IRGB,M). This process was iteratively repeated to refine hair suppression while preserving lesion structure. The fusion of Frangi and Gabor responses enables robust detection of both curved and linear hair artifacts, producing cleaner lesion boundaries for downstream analysis, as shown in h. The proposed fusion-based hair artifact removal strategy contributes to the robustness of the overall framework by effectively eliminating both linear and curved hair artifacts while preserving diagnostically important lesion structures for subsequent analysis.
+
+## 3.3. Proposed CutisNet for Lesion Segmentation
+
+Despite many benefits of dermoscopy, accurate lesion segmentation of dermoscopic images is still a challenge because of the ill-defined boundaries of lesions, skin color differences, and artifacts like hairs, shadows, and illumination inconsistencies. Most of the current segmentation methods are unable to simultaneously maintain fine boundary details and high-level semantic context. More down-sampling will result in a loss of spatial precision and less up-sampling will result in a loss of robustness to real-world variations. Recent studies have also shown that performance deteriorates when a domain shift occurs, which further underscores the importance of developing solid, multi-scale architectures [].
+
+To address these limitations, we propose CutisNet, a specialized encoderâ€“decoder network designed for dermoscopic lesion segmentation. The model is trained using extensive augmentation strategies to simulate real clinical conditions, improving generalization. The architecture is illustrated in and detailed in . When given an RGB dermoscopic image IâˆˆRHÃ—WÃ—3, CutisNet learns a mapping, which is given as Equation (7)
+
+The model is trained on the HAM10000 [] dataset, which contains dermoscopic RGB images and corresponding expert-annotated binary masks. The dataset is split into 70% training and 30% validation. To enhance robustness, each imageâ€“mask pair undergoes augmentation using Equation (8)
+
+CutisNet follows an encoderâ€“contextâ€“decoder structure. The encoder E(â‹…) extracts hierarchical features: Fe=E(I). A multi-scale context module Bâ‹… captures global dependencies using parallel dilated convolutions: Fc=B(Fe). Low-level features Fl are preserved for spatial refinement: Fl=L(I). The decoder Dâ‹… reconstructs the segmentation by fusing semantic and spatial features using Equation (9)
+
+Training minimizes a hybrid loss by combining Binary Cross-Entropy and Dice loss L, while post-processing refines predictions through thresholding and morphological operations using Equation (10)
+
+The architecture diagram is given in , and the segmentation results are presented in , demonstrating improved boundary preservation and structural consistency, while the detailed architecture is provided in .
+
+As shown in , CutisNet achieves the highest Dice Score and IoU, outperforming the baseline models in segmentation accuracy. Although it has a comparable number of parameters to U-Net++, it delivers superior boundary delineation and robustness, particularly in challenging cases involving hair artifacts and low-contrast lesions. This improvement stems from the effective integration of the EfficientNet-B4 encoder with the DeepLabV3+ decoder, which provides richer multi-scale contextual information.
+
+The proposed CutisNet enhances the robustness of the overall framework by providing accurate and reliable lesion boundary delineation, ensuring high-quality lesion masks for subsequent feature extraction and classification.
+
+## 3.4. Multi-Model Deep Representation Learning
+
+A hybrid deep feature extraction strategy is employed, where a CNN-based MobileNetV2 captures fine-grained local- and texture-level details, while a complementary ViT-based DINO learns global contextual representations. This combination enables robust and discriminative feature learning by effectively modeling both spatial details and long-range dependencies within skin lesions.
+
+## 3.4.1. CNN-Based Deep Feature Extraction Using MobileNetV2
+
+To learn high-level representations of skin lesions, a pretrained MobileNetV2 [] network was utilized. Each input image Ix,y,c was resized to 224Ã—224 and normalized using Equation (11).
+
+where Î¼ and Ïƒ are channel-wise parameters. The normalized image was then passed through the network to extract hierarchical features. MobileNetV2 employs depthwise separable convolutions, where standard convolution is decomposed into depthwise and pointwise operations. The depthwise convolution is defined as Equation (12)
+
+where Kd is the depthwise kernel. This is followed by a pointwise 1Ã—1 convolution to combine channel information using Equation (13)
+
+To capture multi-level representations, activations from the first six expansion blocks were extracted as Al=fl(Inorm),Â Â l=1,2,â€¦,6, where flâ‹… denotes the non-linear transformation at layer l. For each activation tensor AlâˆˆRHlÃ—WlÃ—Cl, channel importance was computed using mean activation, as given by Equation (14)
+
+The top K channels with the highest Î¼k were selected. Each feature map was normalized using Equation (15)
+
+where Ïƒk is the standard deviation of the k-th channel, and Ïµ ensures numerical stability. These intermediate feature maps, as displayed in , capture progressively complex patterns, ranging from low-level edges and textures to high-level lesion-specific structures, enabling MobileNetV2 to efficiently learn discriminative local lesion representations that enhance the robustness of the proposed skin cancer classification framework while maintaining computational efficiency.
+
+## 3.4.2. Self-Supervised Vision Transformer Feature Extraction Using DINO
+
+To capture global contextual representations, a self-supervised Vision Transformer (ViT-S/8) that was pretrained using DINO was employed. Each hair-removed image Ix,y was resized, normalized using ImageNet statistics, and divided into non-overlapping 8Ã—8 patches. The image was converted into token embeddings as X=[xcls,x1,x2,â€¦,xN], where xclsÂ is the classification token and N=28Ã—28 is the number of patches, as displayed in . Self-attention was computed using Equation (16)
+
+where Q, K, and V are the query, key, and value matrices; and d is the feature dimension. Spatial relevance was obtained using class-to-patch attention Acls, producing a vector of length N, which was reshaped into a spatial grid AgridâˆˆR28Ã—28. To improve stability, attention across multiple heads was averaged using Equation (17)
+
+where H is the number of heads. The resulting attention map was normalized to 0,1 using Equation (18)
+
+Finally, the map was up-sampled to the original image size using nearest-neighbor interpolation to preserve patch boundaries. The resulting attention maps, as shown in , highlight diagnostically relevant lesion regions and capture rich global contextual representations with long-range feature dependencies, enabling the self-supervised ViT-based DINO to complement the local texture information extracted by MobileNetV2 and enhance the robustness of the proposed skin cancer classification framework.
+
+## 3.5. Multi-Strategy Keypoint-Based Feature Extraction
+
+SIFT extracts scale- and rotation-invariant keypoints, while superpixel-based contour analysis captures boundary-aware keypoints, providing complementary structural information.
+
+## 3.5.1. Superpixel-Based Centroid and Contour Keypoint Extraction
+
+To capture local structural patterns of skin lesions, the segmented lesion image was partitioned into N superpixels Si using the SLIC algorithm, which clusters pixels based on color and spatial proximity by minimizing the distance metric using Equation (19)
+
+where dc is the color distance, ds is the spatial distance, S is the nominal superpixel size, and m is a compactness parameter controlling shape regularity. For each superpixel Si, as shown in b, contours Ci were extracted using boundary detection. To reduce dimensionality while preserving structural information, keypoints Pij were sampled evenly along each contour by employing Equation (20)
+
+where âˆ£Ciâˆ£ is the total number of contour points and n is the number of sampled points per contour. Additionally, the centroid of each superpixel was computed using image moments, as given by Equation (21)
+
+where 1Six,y is the indicator function. This process yields superpixels, contour-based keypoints, and centroids, as displayed in c. The extracted superpixel centroid and contour keypoints contribute complementary structural and boundary information by preserving lesion geometry and spatial organization, thereby enhancing the robustness of the proposed framework and improving its feature discrimination for skin lesion classification.
+
+## 3.5.2. SIFT Keypoint-Based Feature Extraction
+
+To capture scale- and rotation-invariant local features from skin lesions, the Scale-Invariant Feature Transform (SIFT) algorithm was applied to detect keypoints and compute descriptors. SIFT identifies extrema in the Difference-of-Gaussians (DoGs) scale space defined as Equation (22)
+
+where Gx,y,Ïƒ is a Gaussian kernel of standard deviation Ïƒ, k is a multiplicative scale factor, and âˆ— denotes convolution. Keypoints are identified as local extrema of Dx,y,Ïƒ across space and scale. Each keypoint is assigned a dominant orientation Î¸ based on local image gradients using Equation (23)
+
+where Ix and Iy are image gradients in the x and y directions. For each keypoint, a 128-dimensional descriptor is formed from histograms of gradient orientations within a local neighborhood, providing robustness to illumination and rotation. These SIFT features, as displayed in , effectively encode edges, corners, and blob-like structures to generate scale- and rotation-invariant local descriptors, improving robustness against variations in lesion size, orientation, and imaging conditions while providing highly discriminative representations for skin lesion classification.
+
+## 3.6. Hybrid Texture Feature Representation
+
+GLRLM, Tamura, and Gabor features are combined to capture run-length statistics, perceptual texture, and frequency-based patterns for comprehensive lesion texture representation.
+
+## 3.6.1. Texture Analysis Using Gray-Level Run-Length Matrix (GLRLM)
+
+To extract fine-grained texture information from dermoscopic segmented images, each image was first converted to grayscale Ix,yâˆˆ0,255 using the standard luminance formula of I(x,y)=0.2989R(x,y)+0.5870G(x,y)+0.1140B(x,y), where R,G,B are the color channels. The grayscale image was quantized into L levels using Equation (24)
+
+A wÃ—w sliding window with reflective padding was applied to compute the Gray-Level Run-Length Matrix (GLRLM) [] of P(i,j), where i is the gray level and j is the run length, counting horizontal runs of length j at gray levels i. From the GLRLM, five texture descriptors were extracted. Short Run Emphasis (SRE) and Long Run Emphasis (LRE) capture short and long texture structures by using Equation (25)
+
+Gray-Level Non-Uniformity (GLN) and Run-Length Non-Uniformity (RLN) measure intensity and run variability by using Equation (26)
+
+Run Percentage (RP) reflects the run density, and is mathematically expressed as Equation (27). Pixel-wise feature maps were generated using sliding windows and normalized via minâ€“max scaling using Equation (27)
+
+These normalized GLRLM maps, as displayed in , capture local texture variations in skin lesions and serve as discriminative features for classification. GLRLM features contribute complementary statistical texture information by capturing gray-level run-length characteristics associated with lesion homogeneity and structural heterogeneity.
+
+## 3.6.2. Gabor Filter-Based Texture Analysis
+
+Gabor filters, which combine Gaussian envelopes with sinusoidal plane waves, were applied to the enhanced grayscale image. A 2D Gabor filter Gx,y;Î»,Î¸,Ïƒ,Î³, at wavelength Î», orientation Î¸, Gaussian standard deviation Ïƒ, and spatial aspect ratio Î³, is defined as Equation (28)
+
+where Â xâ€²=xcosÎ¸+ysinÎ¸Â andÂ yâ€²=âˆ’xsinÎ¸+ycosÎ¸. The filter was applied at multiple orientations Î¸âˆˆ{0,Ï€/4,Ï€/2,3Ï€/4} and wavelengths corresponding to spatial frequencies fâˆˆ0.05,0.1,0.2 using 2D convolution as RÎ»,Î¸(x,y)=(Iâˆ—GÎ»,Î¸)(x,y), where âˆ— denotes convolution. The Gabor energy map was then computed using Equation (29), as depicted in , by summing the absolute values of all filter responses.
+
+This was then normalized to the range of 0,255 for visualization by using Equation (30)
+
+where Emin and Emax are the minimum and maximum values of E(x,y), respectively. These Gabor energy maps encode directional and frequency-specific texture patterns of skin lesions, capturing structural variations, such as streaks, ridges, and spots. Gabor features contribute multi-scale and multi-orientation texture representations that effectively characterize directional lesion patterns and fine surface textures, enhancing feature discrimination.
+
+## 3.6.3. Tamura Texture Feature Extraction
+
+To characterize skin lesion textures, the input image was first converted to grayscale, and Tamura texture descriptors were computed for contrast and directionality. The contrast map, as shown in b, captures intensity variation using standard deviation Ïƒ, mean Î¼, and normalized fourth central moment Î±4, as defined by Equation (31)
+
+c shows the directionality map that captures edge orientation consistency. Image gradients are computed using Sobel operators, as given by Equation (32)
+
+A magnitude-weighted histogram of Î¸ is constructed, and directionality is defined as the variance of this histogram, i.e., VarHistogramÎ¸,M, as displayed in d. These Tamura-based contrast and directionality descriptors provide a compact representation of local intensity variation and edge orientation patterns in skin lesions, supporting effective classification.
+
+## 3.7. Morphological and Geometric Feature Extraction
+
+To effectively characterize the structural properties of skin lesions, a set of geometric and shape-based descriptors is extracted. These features capture global morphology, invariant shape patterns, and symmetry characteristics, providing complementary information for robust lesion analysis.
+
+## 3.7.1. Ellipse-Based Geometric Feature Extraction
+
+To characterize global lesion shape, the dermoscopic image Ix,y was converted to grayscale Igx,y and smoothed using Gaussian filtering with Is(x,y)=GÏƒ(x,y)âˆ—Ig(x,y), where GÏƒ is a Gaussian kernel and âˆ— denotes convolution. A binary lesion mask B(x,y) was obtained via Equation (33)
+
+ensuring that the lesion region is represented by white pixels. The largest contour C was extracted and fitted with an ellipse using least squares, yielding the center xc,yc, major axis a, minor axis b, and orientation Î¸. Ellipticity was defined as Ïµ=a/b. The resulting mask is given in b. These geometric features (a,b,Î¸,Ïµ) provide a compact representation of lesion shape, capturing elongation and orientation characteristics for distinguishing benign and malignant lesions. Ellipse fitting contributes geometric characterization of lesion morphology by providing robust shape descriptors that complement texture and deep feature representations.
+
+## 3.7.2. Symmetry-Based Shape Feature Extraction
+
+To quantify structural asymmetry, binary lesion masks Bx,yâˆˆ0,1 were used, where non-zero pixels represent the lesion. Symmetry was evaluated along vertical and horizontal axes by comparing the mask with its flipped versions. For vertical symmetry, the reflected mask Bvx,y is defined as Equation (34) and displayed in c.
+
+where W is the image width. The overlap Ov and vertical symmetry score Sv are computed using Equation (35)
+
+For horizontal symmetry, the flipped mask Bhx,y is given as Equation (36), as shown in d.
+
+where H is the image height. The overlap Oh and symmetry score Sh were computed using Equation (37)
+
+The scores Sv and Shâˆˆ[0,1] indicate greater symmetry with higher values. Symmetry analysis contributes clinically relevant morphological information by quantifying lesion asymmetry, an important indicator for distinguishing benign and malignant skin lesions.
+
+## 3.7.3. Hu Moment Shape Feature Extraction
+
+To capture the global shape characteristics of skin lesions, binary lesion masks Bx,y are used.
+
+The raw spatial moments of the binary mask were computed using Equation (38)
+
+From these, the central moments are defined as Equation (39)
+
+The normalized central moments are given by Equation (40)
+
+Using these, the seven Hu invariant moments H1,â€¦,H7 were computed, which are invariant to translation, scale, and rotation. For numerical stability, a logarithmic transformation was applied using Equation (41)
+
+where Ïµ=10âˆ’10 avoids singularities. The centroid of the lesion was also computed as xÂ¯,yÂ¯. These Hu moments, graphically represented in e, provide a compact and rotation-invariant descriptor of lesion shape, complementing other geometric and texture features for robust skin cancer classification.
+
+## 3.8. Feature Fusion Strategy
+
+The proposed framework integrates heterogeneous representations by combining deep embeddings and handcrafted descriptors into a unified feature vector. We let Fd1âˆˆRp and Fd2âˆˆRq denote deep features from the ViT-based DINO and MobileNetV2, respectively. Texture features Ft are extracted using Tamura descriptors, GLRLM, and Gabor responses, while shape features Fs include Hu moments, ellipse parameters, and symmetry descriptors. Keypoint features Fk are derived from SIFT, superpixel centroids, and contour-based distributions. All feature vectors are first normalized using minâ€“max scaling and computed by Equation (42)
+
+The normalized features are then fused at the feature level using Equation (43), where âˆ¥ denotes concatenation.
+
+The deep and handcrafted features are normalized using minâ€“max scaling and concatenated to form a fused feature vector of 5313 dimensions. Gray Wolf Optimization (GWO) is then applied to select the most discriminative features, resulting in a final optimized feature vector of 1856 dimensions, as given in .
+
+## 3.9. Gray Wolf Optimization for Feature Selection and Refinement
+
+To enhance discriminative power and reduce redundancy in the fused feature space Ff, Gray Wolf Optimization (GWO) is employed for adaptive feature weighting and selection. Each candidate solution represents a weight vector as w=[w1,w2,â€¦,wn], where wiâˆˆ[0,1] denotes feature importance. The objective is to minimize classification loss Jw with regularization computed using Equation (44). GWO is guided by three leaders Î±,Î²Â andÂ Î´ (best solutions), while the remaining wolves update their positions using Equation (44)
+
+where Xp is the best solution. The coefficients are given by Equation (45)
+
+where a decreases linearly from 2 to 0, and r1,r2âˆˆ[0,1] ensuresthe explorationâ€“exploitation balance. The optimal weights wâˆ— are obtained from Î±,Î²,Î´, producing refined features, as calculated by Equation (46)
+
+This optimization enhances class separability by retaining informative features while suppressing redundant and noisy components, improving the performance of the downstream GNNâ€“CNN classifier.
+
+Gray Wolf Optimization (GWO) was selected for feature selection because the proposed framework generates a high-dimensional fused feature space by integrating deep and handcrafted features, which may contain redundant and correlated information. GWO effectively identifies the most discriminative feature subset while preserving complementary information. Compared with Genetic Algorithm (GA), which relies on computationally intensive crossover and mutation operations, and Particle Swarm Optimization (PSO), which may converge prematurely, GWO achieves a better explorationâ€“exploitation balance through its hierarchical leadership mechanism. Unlike Ant Colony Optimization (ACO), Differential Evolution (DE), and Salp Swarm Algorithm (SSA), GWO requires fewer control parameters and provides stable convergence with lower computational complexity. By reducing redundant features while retaining lesion-specific texture, shape, and structural information, GWO improves classifier generalization and enhances the accuracy and efficiency of the proposed skin cancer classification framework. shows the comparison of effect of various optimizers on the overall accuracy of the model.
+
+## 3.10. Hybrid GNNâ€“CNN Classification Framework
+
+The optimized feature vector FoptâˆˆRn is classified using a hybrid GNNâ€“CNN architecture to capture both relational and local feature patterns. First, Fopt is represented as a graph G=(V,E), where each node vi corresponds to feature fi, and edges eij are defined using similarity, as given by Equation (47). In the GNN, node embeddings are updated via message passing using Equation (47)
+
+In parallel, Fopt is reshaped and processed by a 1D CNN to capture local correlations using Equation (48). The GNN and CNN outputs are fused by concatenation using Equation (48)
+
+Finally, classification is performed using a fully connected layer with softmax, as given by Equation (49)
+
+The hybrid GNNâ€“CNN classifier contributes complementary local feature learning and graph-based relational modeling, enabling more robust discrimination of visually similar skin lesion categories and improving multi-class classification performance. The complete implementation details, including the network configuration, feature dimensions, training hyperparameters, Gray Wolf Optimization parameters, and hardware/software environment, are summarized in .
+
+## 4.1. Dataset Description
+
+The proposed framework was evaluated on five publicly available skin lesion datasets containing RGB dermoscopic and clinical images with diverse lesion categories and acquisition conditions. The PAD-UFES-20 [] dataset contains 2298 RGB clinical images from six classes: melanoma, basal cell carcinoma, squamous cell carcinoma, actinic keratosis, seborrheic keratosis, and nevus. The ISIC [] dataset is a large-scale benchmark dataset comprising RGB dermoscopic images with multiple lesion categories acquired under varying imaging conditions. The Derm7pt [] dataset contains approximately 2000 RGB dermoscopic images. In this work, five classes were utilized: melanoma, nevus, basal cell carcinoma, seborrheic keratosis, and dermatofibroma. The BCN20000 [] dataset consists of over 19,000 RGB dermoscopic images from eight classes: melanoma, nevus, basal cell carcinoma, actinic keratosis, benign keratosis, dermatofibroma, vascular lesion, and squamous cell carcinoma. The PH2 [] dataset contains 200 high-resolution RGB dermoscopic images categorized into common nevus, atypical nevus, and melanoma classes.
+
+## 4.2. Training, Validation, and Testing Procedure
+
+The training, validation, and testing procedure adopted in this study is described below, including the data splitting strategy, patient-level data handling, and hyperparameter tuning protocol.
+
+## 4.3. Computational Cost Analysis
+
+summarizes the computational cost of each module in the proposed framework. While the ViT-based DINO incurs the highest computational complexity and the hair removal stage requires the longest execution time, MobileNetV2 and the handcrafted feature extraction methods maintain relatively low computational overhead. Overall, the proposed framework achieves an effective balance between computational efficiency and robust skin cancer classification performance.
+
+## 4.4. Confusion Matrices
+
+shows the confusion matrices on the five datasets. The PAD-UFES-20 confusion matrix shows strong recognition for SCC (95%), SEK (91%), and AK (85%). MEL achieved lower accuracy (68%) due to visual similarity and overlapping texture patterns with SEK and SCC, while NV and BCC attained 85% and 80% accuracy, respectively. For the ISIC dataset, high multi-class performance was achieved across all classes, with VASC (99%) and DF (94%) showing the highest accuracy. Minor misclassification occurred among MEL, BKL, AK, and SCC due to similar pigmentation, irregular borders, and lesion morphology. The Derm7pt dataset achieved strong recognition for SK (92%) and NEV (86%), whereas MEL (70%) and MISC (71%) showed higher confusion because of heterogeneous dermoscopic structures and overlapping visual characteristics. BCC achieved 77% accuracy with limited cross-class confusion. The BCN20000 confusion matrix demonstrated strong classification for VASC (98%), SCC (96%), MEL (92%), and BCC (91%). Misclassification among NV, BKL, and AK was mainly caused by high intra-class variability and similar lesion appearance. The PH2 dataset showed highly reliable classification, with MEL, CN, and AN achieving 98%, 94%, and 93% accuracy, respectively. Minor confusion between CN and AN resulted from subtle visual differences in lesion boundaries and pigmentation.
+
+## 4.5. Results and Discussion
+
+The proposed framework, as shown in , achieved 88.0% accuracy on the PAD-UFES-20 dataset, with precision, recall, and F1-score of 0.845, 0.84, and 0.841, respectively. On the ISIC dataset, the model achieved 94.5% accuracy, with precision, recall, and F1-score of 0.907, 0.91, and 0.911, demonstrating strong multi-class performance. The Derm7pt dataset achieved 83.6% accuracy with precision, recall, and F1-score of 0.792, 0.79, and 0.792, respectively. For the BCN20000 dataset, the framework obtained 93.2% accuracy, with precision, recall, and F1-score of 0.877, 0.885, and 0.88. The PH2 dataset achieved the highest performance, with 96.7% accuracy, 0.943 precision, 0.95 recall, and 0.947 F1-score. All reported results represent the mean Â± standard deviation obtained from five-fold stratified cross-validation (80/20 trainâ€“test split). The 95% confidence intervals were calculated as mean Â± 1.96 Ã— (SD/âˆš5). The relatively low standard deviations across all datasets demonstrate the robustness and stability of the proposed framework.
+
+further demonstrates that model achieved high sensitivity (79.2â€“94.7%) and specificity (94.8â€“98.7%), indicating its effectiveness in correctly identifying skin lesion classes while minimizing false-positive predictions. Furthermore, the balanced accuracy values (87.0â€“96.2%) confirm reliable performance under class-imbalanced conditions. Although PAD-UFES-20 exhibited comparatively lower sensitivity due to the challenging nature of melanoma classification and dataset imbalance, the framework maintained competitive performance on this dataset and consistently strong results across all other benchmarks. The low standard deviations and narrow 95% confidence intervals further demonstrate the robustness and stability of the proposed framework.
+
+The ROC curve analysis for all datasets is presented in . The PAD-UFES-20 dataset demonstrates effective class separability, with slight performance degradation for MEL due to overlap with visually similar lesion categories. For the ISIC dataset, the ROC curves remain close to the top-left region, indicating high sensitivity and specificity across all classes. The Derm7pt dataset exhibits comparatively lower ROC performance for the MEL and MISC classes because of heterogeneous dermoscopic structures and inter-class similarity. The ROC curves of the BCN20000 dataset indicate strong discriminative capability, with minor variations among the NV, BKL, and AK classes caused by similar lesion morphology. The PH2 dataset achieved near-ideal ROC characteristics, demonstrating highly reliable lesion discrimination and melanoma detection performance. The training and testing curves of PAD-UFES-20 are shown in .
+
+Although the proposed framework achieved an overall competitive performance on the PAD-UFES-20 dataset (88.0%), melanoma exhibited comparatively lower recognition than other lesion categories. This can be attributed to the inherent challenges associated with melanoma classification. Melanoma demonstrates high intra-class variability, with substantial differences in color, pigmentation, border irregularity, size, and texture, while early-stage melanomas often closely resemble benign lesions. Moreover, melanoma shares significant visual characteristics with seborrheic keratosis, basal cell carcinoma, and squamous cell carcinoma, resulting in increased inter-class confusion. Another contributing factor is the relatively limited number of melanoma samples in the PAD-UFES-20 dataset, which restricts the modelâ€™s ability to learn sufficiently representative melanoma-specific patterns. Nevertheless, despite these challenges, the proposed framework achieved higher overall accuracy than several existing state-of-the-art methods on the same dataset and demonstrated consistently strong performance across all five benchmark datasets. Future work will focus on improving melanoma sensitivity by leveraging diffusion-based synthetic data generation and adaptive class-balanced focal loss to mitigate dataset imbalance, thereby improving the frameworkâ€™s robustness and clinical applicability.
+
+## 4.6. Ablation Study
+
+In , the ablation study validates the effectiveness of each module in the proposed framework. The full model, integrating preprocessing, deep features, lesion keypoints, textural descriptors, and shape-based features, achieves the highest accuracies of 88.0%, 94.5%, 83.6%, 93.2%, and 96.7% on PAD-UFES-20, ISIC, Derm7pt, BCN20000, and PH2, respectively. Removing preprocessing reduces robustness, while excluding MobileNetV2 and ViT-based DINO features causes the largest performance decline, highlighting the importance of deep semantic representations. Likewise, removing lesion keypoints, texture descriptors, and shape-based features consistently decreases accuracy, confirming the complementary role of structural, textural, and morphological information in skin lesion classification.
+
+## 4.7. Comparative Analysis
+
+The proposed model consistently outperforms state-of-the-art methods across multiple datasets, as shown in . On PAD-UFES-20, prior works have reported accuracies, such as Khurshid et al. (0.851), Tang et al. (0.830), and Uliana and Krohling (0.6457), while the proposed model achieves 88.0%. For ISIC, existing methods have included Moodi et al. (0.7142), Pacal et al. (0.9254), Ozdemir et al. (93.60%), and Yang et al. (92.791%). The proposed model attains 94.5%, outperforming them all. On Derm7pt, methods such as Xu et al. (0.813), Tang et al. (0.785), and Bi et al. (0.699) have shown lower performance, whereas the proposed model reaches 83.6%. For BCN20000, prior results have included Agarwal et al. (91.17%), Joshi et al. (92%), and Gunaratne et al. (91.9%), while the proposed model improves to 93.2%. On PH2, existing methods such as Nawaz et al. (95.6%) and Toprak et al. (94.44%) are surpassed by the proposed model, which achieves 96.7%.
+
+## 4.8. Workflow Integration
+
+The proposed framework is intended to function as a computer-aided decision support system rather than a replacement for dermatologist expertise. In a typical clinical workflow, dermoscopic or clinical skin lesion images would first undergo automated preprocessing, artifact removal, and lesion segmentation, followed by feature extraction and classification. The predicted lesion category, together with attention visualizations and interpretable handcrafted feature descriptors, can provide clinicians with complementary information to support diagnostic decision-making. Final diagnosis and treatment planning would remain under the supervision of dermatologists, who can integrate the modelâ€™s predictions with patient history, physical examination, and other clinical findings. Future work will focus on prospective clinical validation, integration with hospital information systems, and evaluation in real-world clinical settings before considering routine clinical deployment.
+
+## 5. Limitations
+
+While the proposed framework demonstrates strong performance across multiple benchmark datasets, several limitations should be acknowledged. First, patient-level splitting was not implemented in the current study due to the unavailability of consistent and reliable patient metadata in most public datasets (e.g., ISIC, Derm7pt, BCN20000, and PH2), where images often lack clear patient linkage. Consequently, data splitting was performed at the image level, which may introduce a minor risk of data leakage in cases where multiple images from the same patient exist. Furthermore, differences in imaging devices, illumination conditions, patient characteristics, and rare lesion categories may influence the generalizability of the proposed framework in real-world clinical settings. Although the hybrid deep learning architecture demonstrated promising performance, it still lacks robust interpretability mechanisms, making clinical decision explanation and physician trust more challenging. In addition, although Gray Wolf Optimization (GWO) effectively reduced the feature dimensionality from 5313 to 1856 while improving classification performance, it is inherently susceptible to limitations, such as potential premature convergence, which may affect the identification of the globally optimal feature subset.
+
+## 6. Conclusions and Future Work
+
+This study presented a comprehensive hybrid framework for automated skin cancer classification by integrating advanced preprocessing, lesion segmentation, deep learning, handcrafted feature extraction, optimization, and hybrid classification techniques into a unified pipeline. The proposed CutisNet segmentation architecture effectively preserved lesion boundaries and improved robustness under challenging imaging conditions, while the combination of MobileNetV2, self-supervised ViT-based DINO, and uniquely selected handcrafted descriptors enabled comprehensive representation of local textures, structural properties, and global contextual information. Furthermore, the incorporation of Gray Wolf Optimization and a hybrid GNNâ€“CNN classifier significantly enhanced discriminative feature learning and multi-class classification performance. Experimental evaluations demonstrated strong performance across multiple benchmark datasets, achieving accuracies of 88.0% on PAD-UFES-20, 94.5% on International Skin Imaging Collaborationâ€”ISIC, 83.6% on Derm7pt, 93.2% on BCN20000, and 96.7% on PH2, thereby confirming the robustness and generalization capability of the proposed framework. Comparative evaluations and ablation studies further validated the contribution of each module toward improved diagnostic accuracy. Future work will focus on improving model interpretability, reducing computational complexity, and incorporating attention-based multimodal learning strategies to enhance real-world clinical applicability and diagnostic reliability. In addition, future studies will prioritize the use of datasets with reliable patient-level annotations to enable patient-level data splitting and further validate the generalizability of the proposed framework in real-world clinical settings. Furthermore, hybrid metaheuristic optimization strategies, such as Gray Wolf Optimization (GWO) combined with Particle Swarm Optimization (PSO) or Genetic Algorithms (GAs), will be investigated to achieve a better explorationâ€“exploitation balance, mitigate premature convergence, and further enhance feature selection performance.
+
+## Author Contributions
+
+Conceptualization, M.A. (Munazza Aziz), S.N. and A.F.A.; methodology, M.A (Munazza Aziz). and S.N.; software, M.A. (Munazza Aziz) and A.F.A.; validation, M.A.(Munazza Aziz), A.F.A., A.J. and M.A. (Metab Altaf); formal analysis, M.A. (Munazza Aziz) and S.N.; investigation, M.A. (Munazza Aziz) and A.M.; resources, M.A. (Metab Altaf)., A.M. and A.J.; data curation, M.A. and A.F.A.; writingâ€”original draft preparation, M.A. (Munazza Aziz); writingâ€”review and editing, A.F.A., A.J., M.A. (Metab Altaf). and A.M.; visualization, M.A. (Munazza Aziz) and A.F.A.; supervision, A.J. and M.A.(Munazza Aziz); project administration, M.A. (Metab Altaf). and A.J.; funding acquisition, A.A., A.M., A.F.A. and M.A. (Metab Altaf). All authors have read and agreed to the published version of the manuscript.
+
+## Institutional Review Board Statement
+
+Not applicable.
+
+## Informed Consent Statement
+
+Not applicable.
+
+## Data Availability Statement
+
+The data presented in this study are available in the PAD-UFES-20 dataset is available at https://data.mendeley.com/datasets/zr7vgbcyr2/1c (accessed on 7 July 2026), the ISIC dataset is available at https://www.isic-archive.com/ (accessed on 7 July 2026), the Derm7pt dataset is available at https://derm.cs.sfu.ca/Download.html (accessed on 7 July 2026), the BCN20000 dataset is available through the https://challenge.isic-archive.com/data/#2019 (accessed on 7 July 2026), and the PH2 dataset is available at https://www.fc.up.pt/addi/ph2%20database.html (accessed on 7 July 2026).
+
+## Conflicts of Interest
+
+The authors declare that they have no conflicts of interest to report regarding the present study.
+
+## Funding Statement
+
+This research received no external funding.
+
+## Data Availability Statement
+
+The data presented in this study are available in the PAD-UFES-20 dataset is available at https://data.mendeley.com/datasets/zr7vgbcyr2/1c (accessed on 7 July 2026), the ISIC dataset is available at https://www.isic-archive.com/ (accessed on 7 July 2026), the Derm7pt dataset is available at https://derm.cs.sfu.ca/Download.html (accessed on 7 July 2026), the BCN20000 dataset is available through the https://challenge.isic-archive.com/data/#2019 (accessed on 7 July 2026), and the PH2 dataset is available at https://www.fc.up.pt/addi/ph2%20database.html (accessed on 7 July 2026).

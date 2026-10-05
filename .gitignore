@@ -1,0 +1,22 @@
+# Kilo agent-manager worktrees (embedded git repos, not part of this project)
+rag/.kilo/worktrees/
+.kilo/worktrees/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

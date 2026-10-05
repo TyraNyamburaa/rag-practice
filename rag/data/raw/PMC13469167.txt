@@ -1,0 +1,339 @@
+# Image-Driven Multimodal Deep Learning for Skin Cancer Diagnosis: Cross-Attention Fusion of Dermoscopic Imaging Clinical Data and Knowledge Graphs
+
+## Abstract
+
+Early detection of skin cancer significantly improves patient outcomes yet remains challenging due to the visual similarity of lesions and the need for clinical context. This paper proposes a novel Image-driven multimodal deep learning framework for automated skin cancer diagnosis integrating dermoscopic imaging sensors’ clinical metadata and biomedical knowledge graphs. Dermoscopic images acquired from optical skin imaging sensors undergo advanced signal processing including multi-scale CLAHE enhancement and artifact suppression. A YOLOv8-nano sensor-based lesion detector achieves 97.2% mAP@0.5 for region-of-interest extraction. The biomedical knowledge graph (26 nodes 86 edges) encodes dermatological domain knowledge into 32-dimensional disease embeddings. Clinical metadata (age gender anatomical site) is encoded via learned feature vectors. A cross-attention fusion mechanism integrates these multimodal sensor-derived signals. Evaluated on the HAM10000 dataset (10,015 images 7 classes), our full multimodal model achieves 91.35% accuracy outperforming image-only (86.96%) and image+metadata (88.45%) baselines. An ensemble reaches 92.78% state-of-the-art accuracy with significant improvements on challenging classes (BCC +6.0% melanoma +3.8%). Statistical significance is confirmed (p < 0.01 95% CI [90.7% 92.0%]). This work demonstrates that Image-based multimodal signal fusion with structured medical knowledge enhances both diagnostic accuracy and clinical interpretability.
+
+Keywords: skin cancer diagnosis, biomedical sensors, dermoscopic imaging, biomedical knowledge graph, multimodal deep learning, dermoscopy, attention-based fusion, sensor fusion
+
+## 1. Introduction
+
+The development of optical skin imaging sensors and devices with IoT technology has led to an increasing need for automated analysis of the medical signals collected by these sensors. In spite of the fact that it represents a minority of skin cancers, melanoma represents the major proportion of deaths caused by these cancers, and it is one of the most common cancers in the world []. Although dermatologists are traditionally the first to diagnose disparate skin conditions, visual diagnosis via a dermatoscopy is prone to interpersonal bias, class imbalance problems, and a rising number of patient diagnoses [,].
+
+Advances in deep learning have recently been able to achieve dermatologist-level accuracy in skin lesion classification []. However, current methods mainly depend on dermoscopic images without taking into account the high-level clinical context (age, gender, and anatomical site) and domain knowledge that help to make clinical decisions in the real world of dermatology []. Moreover, challenges like class imbalance, intra-class similarity, and lack of interpretability remain [].
+
+To overcome these challenges, we present a biomedical knowledge graph-enhanced multimodal deep learning framework for automatic skin cancer diagnosis. We blend (1) lesion detection using YOLOv8, (2) a biomedical knowledge graph encapsulating clinical guidelines (such as the 7-point checklist), (3) encoding clinical metadata, and (4) attention-based multimodal fusion, for interpretable lesion classification. This model combines complementary information from dermoscopic images, clinical metadata, and structured medical knowledge to obtain powerful and clinically relevant diagnosis.
+
+This work has made the following main contributions:
+
+The term sensor refers to optical dermoscopic imaging sensors that acquire the primary diagnostic signals. Our contribution lies in the comprehensive signal processing pipeline () and multimodal fusion architecture that processes detected signals. This sensor-centric perspective enables deployment in teledermatology and edge-enabled healthcare systems. The survey of the previous works on skin cancer classification, multimodal approaches, graph neural networks, and attention mechanisms are summarized in . In , we lay out our proposed methodology. Experiments and results are then presented in detail in with the analysis. The concept of interpretability and clinical implications are discussed in . This paper is ended in , which gives directions for future research.
+
+## 2. Literature Review
+
+Throughout this paper, the term sensor refers to optical dermoscopic imaging sensors that acquire the primary diagnostic signals. Our contribution lies not in sensor hardware development, but in the comprehensive signal processing pipeline () and multimodal fusion architecture that processes sensor-derived signals. This sensor-centric perspective enables deployment in teledermatology and IoT-enabled healthcare systems.
+
+Skin cancer remains one of the most prevalent forms of cancer worldwide, with incidence rates continuing to rise []. Early detection significantly improves patient outcomes, with five-year survival rates exceeding 95% for melanoma detected in early stages []. Dermoscopy has emerged as the gold standard non-invasive diagnostic technique, providing detailed visualization of skin lesions []. Large skin lesion databases like HAM10000 [] have spurred research in skin lesion classification with deep learning.
+
+The application of deep learning to dermatological image analysis has seen remarkable progress since Esteva et al. [] demonstrated dermatologist-level classification using deep neural networks. Subsequent work has explored various architectures including convolutional neural networks such as ResNet-based models [] and EfficientNet [], which have achieved high accuracy on standard datasets. Attention mechanisms have been incorporated to highlight diagnostically relevant regions [,], while ensemble learning approaches have shown better performance compared to single-model approaches []. Zhao et al. [] studied under-represented classes using augmentation techniques based on StyleGAN and DenseNet201. Class imbalance was considered by Alam et al. [], who showed that focal loss and weighted sampling methods are effective for enhancing performance on rare classes. Wu et al. [] conducted a systematic review which established that image-only methods are progressing to maturity, but opportunities still exist for integration of complementary data sources.
+
+Given that dermatologists consider patient age, gender, and anatomical location in diagnosis, several studies have attempted to incorporate clinical metadata alongside image data. Age is especially meaningful since the incidence of melanoma and BCC cases rises with age after 50 []. Anatomical location is essential to provide critical hints: BCC is more likely to appear on sun-exposed areas, while melanoma appears in variable distribution []. Kawahara et al. [] used multitask neural networks with the seven-point checklist. More recent work [] has explored cross-modal attention between imaging and clinical data, and MM-ViT [] introduced multimodal vision transformers with clinical data fusion. However, most multimodal methods rely on simple feature concatenation that cannot handle situations in which one modality is more informative.
+
+Graph neural networks (GNNs) have become a promising paradigm for learning on structured data []. Ramirez et al. [] used gene expression data to classify cancer types using graph convolutional networks. An explainable multilayer GNN was introduced by Chatzianastasis et al. [] for gene prediction in cancer. Vasudevan et al. [] integrated GNNs into multiscale image superpixels for image classification. The integration of structured medical knowledge has recently gained attention. Yu et al. [] proposed graph-enhanced semi-supervised learning for skin lesion diagnosis, but lacked explicit knowledge graph encoding. Abu-Salih [] surveyed domain-specific knowledge graphs, identifying gaps in medical applications. Biomedical ontologies like UMLS [] offer rich terminology but have not been fully integrated into deep learning pipelines for dermatology. Transformer-KG [] integrated knowledge graphs with vision transformers for medical image classification, while graph-enhanced methods [] and knowledge-driven CNNs [] have shown promising results in skin lesion diagnosis. summarizes the most relevant prior studies and highlights the remaining methodological gaps.
+
+Based on our comprehensive literature review, we identify the following critical research gaps. First, existing graph-based approaches rely on semi-supervised learning instead of explicit domain knowledge encoding [], which limits the incorporation of established medical knowledge. Second, most multimodal approaches use simple concatenation [] or fixed weights, failing to capture dynamic modality importance, which is suboptimal for leveraging heterogeneous data sources. Third, the integration of structured biomedical knowledge graphs with deep learning pipelines remains underexplored in dermatology, despite the wealth of available medical knowledge. Fourth, current deep learning models often function as black boxes, limiting clinical adoption, whereas structured knowledge integration could enhance interpretability by providing reasoning chains. Fifth, real-world datasets exhibit severe class imbalance, and existing methods struggle with rare but clinically significant classes like melanoma and BCC.
+
+To address these gaps, our paper makes the following contributions. We construct a domain-specific biomedical knowledge graph (26 nodes; 86 edges) explicitly encoding dermatological relationships between diseases, risk factors, and anatomical sites. We propose a cross-attention based fusion mechanism that dynamically learns modality importance for multimodal integration of images, clinical metadata, and knowledge graph embeddings. We demonstrate that knowledge graph integration significantly improves classification accuracy, particularly for challenging classes (BCC +6.0%; melanoma +3.8%). We provide clinical interpretability through Grad-CAM visualization and KG attention analysis, enabling clinicians to verify reasoning. Finally, we conduct comprehensive comparisons with recent state-of-the-art methods including transformer-based and multimodal approaches, establishing a new benchmark on the HAM10000 dataset.
+
+## 3. Methodology
+
+The complete pipeline of the proposed skin cancer diagnosis system is shown in . This framework is divided into five phases: lesion detection based on YOLOv8, biomedical knowledge graph construction, clinical metadata encoding, and attention-based multimodal fusion for classification.
+
+## 3.1. Dataset Collection and Preparation
+
+One of the largest publicly available dermatoscopic skin cancer image sets, HAM10000 (Human Against Machine with 10,000 training images) [], was used. There are 10,015 labeled images in the dataset across seven diagnostic categories, as given in . The data augmentation and lesion bounding-box generation procedures are detailed in Algorithm 1 and Algorithm 2, respectively.
+
+The dataset is highly imbalanced, consistent with real-world clinical scenarios. This was addressed by employing focal loss and weighted sampling. Each sample contains dermoscopic images, clinical metadata (age, sex, and anatomical location), and histological ground truth. Stratified splitting gave train/validation/test splits of 72.2%, 12.8%, and 15.0%, and we report mean performance over 5-fold cross-validation.
+
+## 3.2. Advanced Image Preprocessing and Augmentation
+
+Dermoscopic images acquired from optical skin imaging sensors contain sensor-specific artifacts and signal noise. We therefore apply a multi-stage signal enhancement pipeline.
+
+## 3.2.1. Hair Removal and Artifact Suppression
+
+Morphological black-hat transformation and inpainting were performed to remove hair artifacts. The black-hat transform extracts dark hair structures, which are then used as masks for Telea inpainting:
+
+where Mhair is the binary (thresholded) hair mask from the morphological gradient.
+
+## 3.2.2. Denoising with Adaptive Noise Model
+
+We employ a combination of noise reduction techniques appropriate for dermoscopic images:
+
+Noise Model: We adopt a mixed noise model consisting of the following:
+
+Denoising Pipeline:
+
+## 3.2.3. Contrast Enhancement with Multi-Scale CLAHE
+
+Contrast Limited Adaptive Histogram Equalization (CLAHE) at various scales was used to enhance texture details without noise amplification. The CLAHE parameters are optimized for dermoscopic images using Equation ():
+
+with α=0.6, clip limit = 2.0, and grid sizes 8 × 8 and 16 × 16. This parameter combination was empirically determined to maximize texture visibility while controlling noise amplification. summarizes the image-quality metrics before and after processing. CLAHE is employed to address the inherent contrast limitations of dermoscopic images caused by uneven illumination and subtle lesion boundaries. To mitigate artifact risks, we implement the following: (i) optimized parameters (clip limit = 2.0) to control noise amplification, (ii) multi-scale enhancement to preserve texture details, (iii) clinical validation by dermatologists (94.2% agreement), (iv) quantitative ablation showing 2.3% accuracy improvement with CLAHE, and (v) quality control through texture preservation metrics. These measures ensure that CLAHE enhancement improves diagnostic utility while minimizing artifact risks. This parameter combination was empirically determined to maximize texture visibility while controlling noise amplification. summarizes the image-quality metrics before and after processing.
+
+Quality Assessment: We used traditional metrics (PSNR, SSIM, and Contrast) for medical image assessment. While the nonparametric texture-based approach proposed by Obuchowicz et al. [] offers a more comprehensive evaluation, its adaptation to dermoscopic images is constrained by two factors: (i) the method requires acquisition parameter variations specific to MRI, and (ii) it relies on multi-acquisition texture stability analysis, whereas our dataset contains single acquisitions per patient. Nevertheless, we agree that perceptual quality metrics are important. The metrics we report (PSNR; SSIM) are standard in the image processing community [,] and provide a reproducible baseline for comparison with prior studies. Future work will explore adapting texture-based quality assessment methods to the dermoscopic imaging domain.
+
+## 3.2.4. Data Augmentation
+
+To improve model robustness, we perform realistic augmentations that simulate real-world imaging variations. All augmentations were performed after the train/validation/test split to prevent data leakage.
+
+The augmentation parameters were carefully selected based on observed variations in clinical practice and smartphone-based teledermatology. illustrates the preprocessing sequence, and shows representative augmented images. Algorithm 1 details the augmentation pipeline.
+
+## 3.3. YOLOv8-Based Lesion Detection and ROI Extraction
+
+The dermoscopic signal is obtained from the sensor and passed through a YOLOv8-nano detector which solves the problem of lesion localization by modeling it as a spatial signal detection task. Finding the regions of the lesions is essential for classification in the downstream. Automated Region of Interest (ROI) extraction was performed using the YOLOv8-nano model [] of which Algorithm 2 describes the automated generation of the bounding-boxes, and displays examples of ROI extraction. shows representative ROI detections using YOLO.
+
+## 3.3.1. YOLO Training Configuration
+
+The YOLOv8-nano model was trained for 50 epochs with input size 640 × 640, batch size 16, and AdamW optimizer (initial learning rate 0.002). The loss function combines the terms shown in Equation ():
+
+with λbox=7.5, λcls=0.5, and λdfl=1.5.
+
+## 3.3.2. ROI Extraction and Refinement
+
+Post-detection, we extracted ROIs with 30-pixel padding to ensure complete lesion inclusion, as defined in Equation ():
+
+where (x1,y1) and (x2,y2) are bounding box coordinates, and p=30 pixels. Extracted ROIs were resized to 224 × 224 pixels for classification.
+
+## 3.4. Biomedical Knowledge Graph Construction
+
+One of the important innovations of our work is the integration of a biomedical knowledge graph containing domain knowledge on dermatology. It is derived from clinical literature and expert guidelines and includes 26 nodes (corresponding to 7 diseases, 11 risk factors, and 8 anatomical sites) and 86 edges (corresponding to causal and associative relationships).
+
+## 3.5. Knowledge Graph Node and Edge Specifications
+
+This section specifies the 26 nodes and 86 edges of the knowledge graph, as detailed in and , followed by the mapping algorithm (Algorithm 3).
+
+## 3.5.1. Node Attribute Dictionary
+
+provides the complete attribute specification for all 26 nodes in the biomedical knowledge graph.
+
+## 3.5.2. Edge Relationship Specifications
+
+details all 86 edges organized by relationship type. The edges capture three primary relationship categories: has_risk_factor (38 edges), commonly_on (28 edges), and risk_for (20 edges). Each edge is assigned a weight representing the strength of association between the connected nodes.
+
+## 3.5.3. Reproducible Mapping Example
+
+Algorithm 3 demonstrates the step-by-step procedure for mapping a HAM10000 patient record to the corresponding knowledge graph nodes. The algorithm extracts disease, risk factor, and anatomical site embeddings and then combines them into a patient-aware feature vector for downstream tasks.
+
+## 3.6. Graph Neural Network-Based Embedding
+
+We employ a Graph Attention Network (GAT) to learn node embeddings end-to-end, after constructing the graph with Algorithm 4. For a node v with neighbors N(v), the updated embedding is as follows:
+
+where the attention coefficient αvu is as follows:
+
+We use 2 GAT layers (hidden dim = 64, output dim = 32, and heads = 4). The final KG embedding hkg∈R32 is obtained by mean pooling over disease nodes relevant to the patient.
+
+## Patient-Aware KG Features
+
+For each patient, we generate disease-specific KG features by weighting GAT embeddings with patient metadata:
+
+visualizes the disease, risk-factor, and anatomical-site relationships used for KG embedding.
+
+## 3.7. Clinical Metadata Encoding
+
+Patient metadata (age, gender, and anatomical location) was encoded into a 20-dimensional feature vector capturing both direct attributes and clinically relevant interactions, with age, gender, location, and interaction encodings defined in Equations ()–(). For samples with missing metadata, we used median imputation for age and mode imputation for categorical variables.
+
+## 3.7.1. Age Encoding (5 Dimensions)
+
+where ϕrisk(age) is a non-linear risk function: 0.2 for age < 30, 0.4 for age < 50, 0.7 for age < 65, and 0.9 otherwise.
+
+## 3.7.2. Gender Encoding (3 Dimensions)
+
+with gcode=0 for male, 1 for female, and 0.5 for unknown.
+
+## 3.7.3. Location Encoding (7 Dimensions)
+
+where ssun quantifies sun exposure (0–1), vvis represents visibility, and rrisk encodes anatomical risk level.
+
+## 3.8. Learned Metadata Embedding with Cross-Attention
+
+Instead of handcrafted rules, we use a small MLP (2 layers; hidden dim = 64) to learn metadata embeddings:
+
+where hmetalearned∈R32.
+
+We further introduce cross-attention between image features and metadata:
+
+## 3.9. Multimodal Feature Extraction and Fusion Architecture
+
+This section presents our multimodal feature extraction and fusion approach. We leverage EfficientNet-B0 for visual features and employ cross-attention to integrate clinical metadata and knowledge graph embeddings for enhanced skin lesion classification.
+
+## 3.9.1. Image Feature Extraction with EfficientNet-B0
+
+We employed EfficientNet-B0 [] pre-trained on ImageNet as our visual feature extractor. The network’s classification head was removed, yielding the 1280-dimensional feature vectors in Equation ():
+
+## 3.9.2. Proposed Multimodal Fusion Architecture
+
+Our Full Multimodal model integrates three modalities through attention-based fusion. We treat each modality as a distinct sensor channel: (i) optical imaging sensor (dermoscopy), (ii) clinical metadata as a virtual sensor, and (iii) knowledge graph embeddings as a knowledge sensor. Cross-attention enables adaptive sensor fusion.
+
+For token-level multimodal fusion, we treat each modality as a distinct set of tokens to enable fine-grained cross-modal interactions. Specifically, the image modality is represented as a grid of spatial patches extracted from the EfficientNet-B0 feature map, resulting in 49 tokens each of 128 dimensions, capturing local visual features across the lesion image. The clinical metadata is represented as a single token of 32 dimensions, encoding the patient’s demographic and clinical information. The biomedical knowledge graph is represented by selecting the 5 most relevant disease nodes for each patient, yielding 5 tokens each of 32 dimensions, capturing structured medical knowledge about disease relationships and risk factors.
+
+After obtaining a set of tokens corresponding to each image, we proceed with a cross-attention mechanism, that is, queries from the image tokens are sent to attend over the collection of metadata and knowledge graph tokens. This enables the model to dynamically match the visual characteristics of the image with the appropriate clinical and domain knowledge for each spatial position in the image. The cross-attention operation is defined as follows:
+
+The combined keys and values are as follows: K[meta,kg]=WK[hmeta;hkgtokens] and V[meta,kg]=WV[hmeta;hkgtokens]. This attention mechanism calculates a weighted sum of the value vectors according to the similarity between every image patch and the value vectors from the metadata and the knowledge graph, to direct the model toward the most relevant clinical and domain information at every point where the lesion is located.
+
+After the cross-attention fusion operation, the obtained fused representation hfused is fed into a 2-layer classification head to obtain the final disease prediction. The first layer changes the representation into a linear transformation with ReLU activation to learn non-linear combinations of the fused features. The second layer performs the mapping of the hidden representation to the probabilities of output classes, using softmax function. The entire classification process is defined in Equation ():
+
+Wh1, bh1, and y^ denote the weights, bias, and the predicted probability distribution over the 7 classes of skin cancer (AKIEC, BCC, BKL, DF, MEL, NV, and VASC), respectively, of the first fully connected layer, while Wc and bc denote the weights and bias of the output layer. The token level fusion and classification workflow is summarized in the following Algorithm 5.
+
+## 3.9.3. Ablation Study Variants
+
+We designed four variants of the model: (1) Image Only (baseline): only visual features; (2) Image + Metadata: concatenating visual and clinical features; (3) Image + KG: concatenating visual and knowledge graph features; and (4) Full Multimodal (Proposed): attention-based fusion of all three modalities.
+
+## 3.10. Clinical Prior Constraints via Anatomical Site-Based Attention
+
+We introduce anatomical site-specific attention temperature coefficients to incorporate clinical priors:
+
+For each anatomical site s, we define a temperature coefficient τs:
+
+The modified attention mechanism becomes as follos:
+
+## 3.11. Training Configuration and Loss Functions
+
+This section describes the loss functions and optimization strategy employed for training our multimodal models, including class imbalance handling and regularization techniques.
+
+## 3.11.1. Class Imbalance Handling
+
+We employed Focal Loss [] to address extreme class imbalance, as defined in Equation ():
+
+where pyi is the predicted probability for the true class, γ=2.0 focuses training on hard examples, and αyi are class weights computed using Equation ():
+
+## 3.11.2. Optimization Strategy
+
+We have taken AdamW optimizer with decoupled weight decay. They were trained for 30 epochs and using early stopping with patience 10, using the validation accuracy. To prevent gradient explosion, the gradient was clipped at max norm value of 1.0. The experiments were carried out in an NVIDIA A100 GPU with 40 GB of memory.
+
+## 3.12. Sensing and Signal Processing Context
+
+The proposed framework is consistent with the advanced medical sensing paradigms, where dermoscopic sensors give rise to high-resolution optical signals; the latter is preprocessed by an attention-based signal conditioning module; and, an attention-based fusion module is responsible for multi-sensor integration. This sensor-centric perspective provides opportunity for future deployment in teledermatology systems using IoT.
+
+## 3.13. Statistical Significance Testing Methodology
+
+To rigorously validate the statistical significance of our knowledge graph integration, we employ non-parametric bootstrap resampling with 10,000 iterations. Algorithm 6 describes the complete bootstrap procedure for estimating confidence intervals and p-values.
+
+The bootstrap procedure resamples the test set with replacement for each iteration, computes the accuracy difference between the two models being compared, and constructs a distribution of accuracy differences. The 95% confidence interval is derived from the 2.5th and 97.5th percentiles of this distribution, and the p-value is computed as the proportion of bootstrap samples where the accuracy difference is in the opposite direction of the observed difference, multiplied by 2 for a two-tailed test.
+
+## 4. Results and Discussion
+
+We provide in this section a comprehensive evaluation of the proposed multimodal deep learning system for automated diagnosis of skin cancer. The experimental results are reported as lesion detection performance, classification accuracy for various modality combinations, class-wise performance, analysis of contribution of knowledge graph, comparison with state-of-the-art methods, and interpretability analysis by visualizing the Grad-CAM maps and examining the attention weights.
+
+## 4.1. Lesion Detection Performance
+
+shows that the YOLOv8-nano detector achieved outstanding performance in skin lesion localization. The detector correctly recognized lesion areas with a mean Average Precision (mAP@0.5) of 97.20%, across different image types and qualities.
+
+## 4.2. Classification Performance: 5-Fold Cross-Validation
+
+presents the complete ablation study results, demonstrating the progressive improvement achieved by adding each modality. Results are reported as mean ± standard deviation across five folds.
+
+## 4.3. Ensemble Strategy
+
+To further improve performance, we created an ensemble of three best-performing Full Multimodal models trained with different random seeds (42, 123, and 2024). We used soft voting where final predictions are computed using Equation ():
+
+This ensemble achieved 92.78% accuracy, establishing a new state-of-the-art. compares the evaluated ensemble strategies.
+
+## 4.4. Class-Wise Performance Analysis
+
+Performance of the proposed Full Multimodal model is shown in detail class-wise in . The model works well in typical classes with an accuracy of 96% in NV and 95% in AKIEC. Importantly, melanoma (MEL) detection recall improves to 84%, with basal cell carcinoma (BCC) recall at 81%, which is a 6% improvement from the model without the KG. The normalized confusion matrix is shown in , and training dynamics during epochs is reported in .
+
+## 4.5. Knowledge Graph Contribution Analysis
+
+shows the impact of KG by disease class. The benefit of KG is highest in challenging classes, with BCC showing an improvement of +6.0% and melanoma showing an improvement of +3.8%; both are clinically significant. illustrates the learned KG attention weights across disease-specific risk factors.
+
+## 4.6. Ablation on Knowledge Graph Embedding Dimensions
+
+To investigate the impact of embedding dimension on model performance, we conducted controlled experiments varying the KG embedding dimension (dkg) and metadata embedding dimension (dmeta) from 32 to 128 and 256, as summarized in .
+
+## 4.7. Statistical Significance of Knowledge Graph Integration
+
+To rigorously validate the contribution of our knowledge graph, we performed paired bootstrap statistical significance testing with 10,000 iterations . KG integration yielded statistically significant improvements across all comparisons, with all improvements being significant at p<0.05.
+
+## 4.8. Detailed Statistical Significance Results
+
+presents the detailed bootstrap statistical significance results for knowledge graph integration across different model comparisons.
+
+## 4.9. Per-Class Statistical Significance
+
+We performed class-wise statistical analysis to identify which disease classes benefit most from KG integration. presents the per-class bootstrap results.
+
+## 4.10. Comparison with State-of-the-Art
+
+presents performance results on HAM10000 in comparison with recent state-of-the-art methods.
+
+## 4.11. Interpretation of Comparative Performance and Clinical Significance
+
+Our method achieves superior performance due to three key innovations:
+
+First, the biomedical knowledge graph (26 nodes; 86 edges) provides explicit domain knowledge that image-only models lack. Unlike Graph-Enhanced [], which uses semi-supervised learning without explicit knowledge encoding, our graph explicitly encodes disease-risk-factor–anatomical site relationships. This is particularly beneficial for ambiguous cases (12.3% BCC-MEL confusion reduction).
+
+Second, our cross-attention fusion mechanism dynamically weights modalities based on informativeness for each case. This outperforms simple concatenation used in Med-MultiModal [] and MM-ViT [], which treat all modalities equally.
+
+Third, our YOLOv8-based ROI extraction (97.2% mAP; 2.9 ms) ensures the model focuses on lesion regions, outperforming attention-based methods like ViT [] which process entire images. Among top competitors, our method achieves comparable or better accuracy while providing superior interpretability through KG attention weights and Grad-CAM visualization.
+
+## 4.11.1. Clinical Significance of Accuracy Improvements
+
+While a 1% overall accuracy improvement translates to 100 additional correct diagnoses per 10,000 patients, the class-specific improvements are clinically more meaningful:
+
+The p-values (<0.001) and effect sizes () confirm these are statistically and clinically significant improvements that would translate to real-world patient benefit.
+
+## 4.11.2. Contribution of Knowledge Graph Components
+
+reports controlled experiments that isolate the contribution of disease, risk-factor, and anatomical-site nodes.
+
+## 4.11.3. Statistical Significance Testing
+
+We employ multiple statistical tests to validate the significance of our improvements, as shown in .
+
+## 4.11.4. BCC-MEL Confusion Analysis
+
+provides specific examples of BCC-MEL confusion cases from our experiments, showing how KG integration helps resolve ambiguous cases.
+
+The confusion analysis reveals that most misclassifications occur between BCC and MEL (12.3% of BCC cases misclassified as MEL, and 8.7% of MEL cases misclassified as BCC). These cases typically share overlapping visual characteristics such as irregular pigmentation patterns. The KG integration helps disambiguate these cases by incorporating patient-specific risk factors (e.g., age, sun exposure, and anatomical site) and disease-specific knowledge.
+
+## 4.11.5. Computational Complexity Comparison
+
+compares the computational cost of the proposed variants with representative baselines from .
+
+## 5. Interpretability Analysis
+
+We provide clinical interpretability using Grad-CAM visualization and KG attention analysis; see and . Grad-CAM shows that the model emphasizes lesion edges and abnormal pigmentation patterns, with the greatest attention on clinically relevant features.
+
+## 5.1. Quantitative Evaluation of Grad-CAM Heatmaps
+
+To provide a quantitative assessment of model interpretability, we evaluate Grad-CAM heatmaps using the three metrics reported in :
+
+Deletion Metric: For each image, we sequentially remove the top-k% of pixels according to Grad-CAM importance and measure the drop in prediction confidence.
+
+Perturbation Metric: For each image, we perturb the bottom-k% of pixels and measure the change in prediction confidence.
+
+The results demonstrate that the full multimodal model achieves the highest IoU with expert-annotated lesion boundaries (0.56), indicating that the attention maps align well with clinically relevant regions. The deletion score (0.49) shows that removing highlighted regions causes a significant drop in confidence, confirming that the model relies on diagnostically relevant features. The perturbation score (0.58) indicates that perturbing non-highlighted regions has minimal impact on predictions, further validating the model’s focus on relevant features.
+
+## 5.2. Discussion and Clinical Implications
+
+The advantage of multimodal fusion, especially knowledge graph integration, has great clinical significance. The 4.39% improvement in accuracy corresponds to approximately 439 more accurate diagnoses per 10,000 patients. For the most clinically relevant skin cancer types, BCC and melanoma show improvements of 6.0% and 3.8%, respectively. Moreover, the interpretability of KG reasoning overcomes the “black box” objection to deep learning in medicine, as clinicians can view which risk factors inform decisions, allowing verification against clinical experience and facilitating clinical adoption.
+
+## 6. Conclusions
+
+This study proposes a multimodal framework that integrates sensor-driven dermoscopic imaging, clinical metadata, and a biomedical knowledge graph using a multi-head cross-attention signal-processing method. The framework is designed for deployment in emerging IoT-enabled healthcare architectures and wearable skin sensors. The YOLOv8-based ROI extraction achieved a detection mAP@0.5 of 97.2%, ensuring accurate lesion localization for subsequent classification. The biomedical knowledge graph (26 nodes; 86 edges) achieved validation accuracy of 94.2% in capturing disease-risk factor relationships. The full multimodal model achieved classification accuracy of 91.35%, significantly outperforming baseline models (Image Only: 86.96%; Image + Meta: 88.45%; Image + KG: 89.20%). The ensemble version achieved 92.78% classification accuracy, establishing a new state-of-the-art on the HAM10000 dataset. Knowledge graph integration particularly improved detection of clinically challenging classes: BCC (+6.0%) and melanoma (+3.8%), with statistical significance (p < 0.001). Beyond accuracy, KG integration enhances interpretability by providing attention-based reasoning chains that clinicians can verify against their experience. Data homogeneity (controlled conditions in HAM10000), missing metadata (approximately 8% imputed with median/mode), limited KG completeness (no patient-specific risk profiles), and the need for prospective external validation are limitations. Large language models for automatic knowledge extraction, federated learning for privacy-preserving multi-institutional training, and prospective clinical validation across diverse populations are future direction. In summary, the framework demonstrates that structured medical knowledge can significantly enhance data-driven pattern recognition, resulting in clinically viable AI systems that combine computational accuracy with medical expertise.
+
+## Author Contributions
+
+Conceptualization, S.S.W., K.L. and S.R.H.; methodology, S.S.W., S.I. and A.R.; software, S.S.W. and A.R.; validation, S.S.W., S.I., A.R., K.L. and S.R.H.; formal analysis, S.S.W. and A.R.; investigation, S.S.W. and S.I.; resources, S.I., K.L. and S.R.H.; data curation, S.S.W. and A.R.; writing—original draft preparation, S.S.W.; writing—review and editing, S.I., A.R., K.L. and S.R.H.; visualization, S.S.W. and A.R.; supervision, K.L. and S.R.H.; project administration, S.I., K.L. and S.R.H.; funding acquisition, S.I. All authors have read and agreed to the published version of this manuscript.
+
+## Institutional Review Board Statement
+
+Not applicable.
+
+## Informed Consent Statement
+
+Not applicable.
+
+## Data Availability Statement
+
+All data supporting the findings of this study are publicly available through the HAM10000 dataset. Code and model weights are available from the corresponding author upon reasonable request.
+
+## Conflicts of Interest
+
+The authors declare no conflicts of interest.
+
+## Funding Statement
+
+The authors extend their appreciation to the Arab Open University for funding this work.
+
+## Data Availability Statement
+
+All data supporting the findings of this study are publicly available through the HAM10000 dataset. Code and model weights are available from the corresponding author upon reasonable request.
